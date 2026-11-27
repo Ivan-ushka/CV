@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Документ</title>
+  <style>
+    body { margin: 0; background: #525659; font-family: sans-serif; }
+    #viewer { max-width: 900px; margin: 0 auto; }
+    canvas { display: block; width: 100%; height: auto; margin-bottom: 8px; background: #fff; }
+    #status { color: #fff; text-align: center; padding: 16px; }
+  </style>
+</head>
+<body>
+<div id="status">Загрузка...</div>
+<div id="viewer"></div>
+
+<script type="module">
+  const PDF_URL = 'Victorovich_Ekaterina-CV.pdf'; // файл лежит рядом с index.html
+  const CDN = 'https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38';
+
+  const status = document.getElementById('status');
+  const viewer = document.getElementById('viewer');
+
+  try {
+    const pdfjs = await import(`${CDN}/legacy/build/pdf.min.mjs`);
+    pdfjs.GlobalWorkerOptions.workerSrc = `${CDN}/legacy/build/pdf.worker.min.mjs`;
+
+    const pdf = await pdfjs.getDocument({
+      url: PDF_URL,
+      cMapUrl: `${CDN}/cmaps/`,
+      cMapPacked: true,
+      standardFontDataUrl: `${CDN}/standard_fonts/`
+    }).promise;
+
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const baseWidth = page.getViewport({ scale: 1 }).width;
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const viewport = page.getViewport({
+        scale: (viewer.clientWidth * dpr) / baseWidth
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.floor(viewport.width);
+      canvas.height = Math.floor(viewport.height);
+      viewer.appendChild(canvas);
+
+      await page.render({
+        canvasContext: canvas.getContext('2d'),
+        viewport
+      }).promise;
+
+      status.hidden = true;
+    }
+  } catch (error) {
+    console.error(error);
+    status.hidden = false;
+    status.textContent = 'Не удалось загрузить документ';
+  }
+</script>
+</body>
+</html>
